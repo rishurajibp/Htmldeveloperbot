@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: secure-html-bot
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: API_ID
+        value: "21705536"
+      - key: API_HASH
+        value: "c5bb241f6e3ecf33fe68a444e288de2d"
+      - key: BOT_TOKEN
+        value: "7601635113:AAG_bPYt03h1AdHcz-bMnPdnvFW9GHgC5g8"
+      - key: MONGO_URI
+        value: "mongodb+srv://engineersbabuxtract:ETxVh71rTNDpmHaj@cluster0.kofsig4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+      - key: DEFAULT_THUMBNAIL
+        value: "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"
+      - key: SECRET_KEY
+        value: "hgygjugxchjhn"
+      - key: CHANNEL_ID
+        value: "@Engineers_babus"
+      - key: ADMIN_IDS
+        value: "7809571505,6669182897"
+      - key: PORT
+        value: "10000"
