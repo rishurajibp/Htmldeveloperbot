@@ -42,7 +42,7 @@ def categorize_urls(urls):
     for name, url in urls:
         url_lower = url.lower()
         if "classplusapp" in url_lower:
-            videos.append((name, f"https://engineersbabuplayer.onrender.com/?url={url}"))
+            videos.append((name, f"https://engineers-babu.onrender.com/?url={url}"))
         elif ".zip" in url_lower:
             videos.append((name, url))
         elif any(x in url_lower for x in ["youtube.com", "youtu.be"]):
