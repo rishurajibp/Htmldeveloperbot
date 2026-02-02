@@ -5,13 +5,7 @@ from urllib.parse import quote_plus
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
-# =========================
-# ENV VARIABLES (Koyeb)
-# =========================
-API_ID = int(os.getenv("API_ID"))
-API_HASH = os.getenv("API_HASH")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
+from environment import API_ID, API_HASH, BOT_TOKEN
 # =========================
 # BOT INIT
 # =========================
