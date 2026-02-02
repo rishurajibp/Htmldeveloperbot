@@ -1,232 +1,159 @@
 import os
-from datetime import datetime
-from urllib.parse import quote_plus
-
-from pyrogram import Client, filters
+import hashlib
+import secrets
+from pyrogram import Client, filters, enums
 from pyrogram.types import Message
+from datetime import datetime
+import pytz
+from environment import API_ID, API_HASH, BOT_TOKEN, DEFAULT_THUMBNAIL, SECRET_KEY, MONGO_URI, ADMIN_IDS, PORT
 
-from environment import API_ID, API_HASH, BOT_TOKEN
-# =========================
-# BOT INIT
-# =========================
-bot = Client(
-    "txt_to_html_bot",
+from pymongo import MongoClient
+
+# Optional: MongoDB setup
+if MONGO_URI:
+    mongo_client = MongoClient(MONGO_URI)
+    db = mongo_client.get_database("secure_html_bot")
+    users_col = db["users"]
+else:
+    db = None
+    users_col = None
+
+# Admin list
+ADMIN_IDS = [int(i.strip()) for i in ADMIN_IDS.split(",")] if ADMIN_IDS else []
+
+# Initialize Telegram client
+app = Client(
+    "secure_html_bot",
     api_id=API_ID,
     api_hash=API_HASH,
-    bot_token=BOT_TOKEN
+    bot_token=BOT_TOKEN,
+    parse_mode=enums.ParseMode.HTML
 )
 
-# =========================
-# URL CATEGORIZATION
-# =========================
+# ---------------- UTILITY FUNCTIONS ----------------
+
+def generate_access_code():
+    """Generate a secure access code for users"""
+    return f"ER.BABU{{{''.join(secrets.choice('0123456789') for _ in range(6))}}}"
+
 def categorize_urls(urls):
+    """Simple categorization: videos / pdfs / others"""
     videos, pdfs, others = [], [], []
-
-    VIDEO_EXTENSIONS = (
-        ".m3u8", ".mp4", ".mkv", ".webm",
-        ".avi", ".mov", ".wmv", ".flv",
-        ".mpeg", ".mpd"
-    )
-
-    YOUTUBE_KEYS = (
-        "youtube.com/watch",
-        "youtube.com/embed",
-        "youtu.be"
-    )
-
     for name, url in urls:
         url_lower = url.lower()
-
-        # ClassPlus
         if "classplusapp" in url_lower:
-            encoded = quote_plus(url)
-            videos.append((
-                name,
-                f"https://engineersbabuplayer.onrender.com/?url={encoded}"
-            ))
-
-        # ZIP (AppX batch)
-        elif url_lower.endswith(".zip"):
-            encoded = quote_plus(url)
-            videos.append((
-                name,
-                f"https://video.pablocoder.eu.org/appx-zip?url={encoded}"
-            ))
-
-        # YouTube
-        elif any(k in url_lower for k in YOUTUBE_KEYS):
+            videos.append((name, f"https://engineersbabuplayer.onrender.com/?url={url}"))
+        elif ".zip" in url_lower:
             videos.append((name, url))
-
-        # Direct video
-        elif url_lower.endswith(VIDEO_EXTENSIONS):
+        elif any(x in url_lower for x in ["youtube.com", "youtu.be"]):
             videos.append((name, url))
-
-        # PDF
-        elif url_lower.endswith(".pdf"):
+        elif any(ext in url_lower for ext in [".mp4", ".mkv", ".webm", ".avi", ".mov"]):
+            videos.append((name, url))
+        elif ".pdf" in url_lower:
             pdfs.append((name, url))
-
-        # Others
         else:
             others.append((name, url))
-
     return videos, pdfs, others
 
+def extract_names_and_urls(file_content):
+    """Extract name:url pairs from .txt content"""
+    urls = []
+    for line in file_content.strip().split("\n"):
+        if ":" in line:
+            name, url = line.split(":", 1)
+            urls.append((name.strip(), url.strip()))
+    return urls
 
-# =========================
-# GLASSMORPHISM HTML
-# =========================
-def generate_html(videos, pdfs, others, title):
-    def section(title, items, emoji):
-        if not items:
-            return ""
-        cards = ""
-        for name, url in items:
-            cards += f"""
-            <a href="{url}" class="card">
-                <span class="emoji">{emoji}</span>
-                <span>{name}</span>
-            </a>
-            """
-        return f"""
-        <section>
-            <h2>{emoji} {title}</h2>
-            <div class="grid">{cards}</div>
-        </section>
-        """
+def generate_html(file_name, urls):
+    """Generate HTML with glassmorphism + mobile-first design"""
+    base_name = os.path.splitext(file_name)[0]
+    videos, pdfs, others = categorize_urls(urls)
+    ist = pytz.timezone('Asia/Kolkata')
+    now = datetime.now(ist).strftime("%d %B %Y | %I:%M:%S %p")
 
-    time_now = datetime.now().strftime("%d %b %Y • %I:%M %p")
+    video_html = "".join(f"<li>{name}: <a href='{url}' target='_blank'>{url}</a></li>" for name, url in videos)
+    pdf_html = "".join(f"<li>{name}: <a href='{url}' target='_blank'>{url}</a></li>" for name, url in pdfs)
+    other_html = "".join(f"<li>{name}: <a href='{url}' target='_blank'>{url}</a></li>" for name, url in others)
 
-    return f"""<!DOCTYPE html>
+    return f"""
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title}</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{base_name}</title>
 <style>
 body {{
-    margin: 0;
-    font-family: system-ui, -apple-system, sans-serif;
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    color: white;
-}}
-
-.container {{
-    max-width: 900px;
-    margin: auto;
-    padding: 16px;
-}}
-
-header {{
-    backdrop-filter: blur(14px);
-    background: rgba(255,255,255,0.12);
-    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)), url('https://i.postimg.cc/4N69wBLt/hat-hacker.webp') no-repeat center center fixed;
+    backdrop-filter: blur(10px);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #fff;
     padding: 20px;
-    text-align: center;
-    margin-bottom: 22px;
 }}
-
-h1 {{
-    margin: 0;
-    font-size: 1.6rem;
+.container {{
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 20px;
+    max-width: 800px;
+    margin: auto;
 }}
-
-small {{
-    opacity: 0.7;
-}}
-
-section {{
-    margin-bottom: 26px;
-}}
-
-h2 {{
-    font-size: 1.2rem;
-    margin-bottom: 12px;
-}}
-
-.grid {{
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
-}}
-
-.card {{
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding: 14px;
-    border-radius: 16px;
-    text-decoration: none;
-    color: white;
-    backdrop-filter: blur(12px);
-    background: rgba(255,255,255,0.15);
-    transition: 0.25s;
-}}
-
-.card:hover {{
-    background: rgba(255,255,255,0.28);
-    transform: translateY(-3px);
-}}
-
-.emoji {{
-    font-size: 1.4rem;
+h1 {{ text-align: center; margin-bottom: 20px; }}
+h2 {{ margin-top: 20px; color: #fffb; }}
+ul {{ list-style-type: none; padding: 0; }}
+li {{ padding: 8px 0; }}
+a {{ color: #ffd700; text-decoration: none; }}
+a:hover {{ text-decoration: underline; }}
+@media(max-width:768px) {{
+    .container {{ padding: 15px; }}
 }}
 </style>
 </head>
-
 <body>
 <div class="container">
-
-<header>
-    <h1>{title}</h1>
-    <small>{time_now}</small>
-</header>
-
-{section("Videos", videos, "🎬")}
-{section("PDF Notes", pdfs, "📘")}
-{section("Others", others, "📁")}
-
+<h1>{base_name}</h1>
+<p>Generated: {now}</p>
+<h2>Videos</h2><ul>{video_html}</ul>
+<h2>PDFs</h2><ul>{pdf_html}</ul>
+<h2>Others</h2><ul>{other_html}</ul>
 </div>
 </body>
 </html>
 """
 
+# ---------------- BOT HANDLERS ----------------
 
-# =========================
-# TXT → HTML HANDLER
-# =========================
-@bot.on_message(filters.private & filters.document)
-async def txt_converter(_, message: Message):
-    if not message.document.file_name.endswith(".txt"):
-        return await message.reply("❌ Please send a `.txt` file only.")
+@app.on_message(filters.private & filters.document & filters.incoming)
+async def txt_to_html(client: Client, message: Message):
+    """Convert uploaded .txt file to HTML"""
+    file_name = message.document.file_name
+    if not file_name.endswith(".txt"):
+        await message.reply_text("❌ Only .txt files are supported.")
+        return
 
-    path = await message.download()
+    file_path = await message.download()
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
 
-    urls = []
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            if "|" in line:
-                name, url = line.split("|", 1)
-                urls.append((name.strip(), url.strip()))
+    urls = extract_names_and_urls(content)
+    html_content = generate_html(file_name, urls)
 
-    videos, pdfs, others = categorize_urls(urls)
-
-    html = generate_html(
-        videos, pdfs, others,
-        title="Engineers Babu Library"
-    )
-
-    html_path = path.replace(".txt", ".html")
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(html)
+    html_file_name = file_name.replace(".txt", ".html")
+    with open(html_file_name, "w", encoding="utf-8") as f:
+        f.write(html_content)
 
     await message.reply_document(
-        html_path,
-        caption="✨ TXT → HTML converted (Glass UI)"
+        document=html_file_name,
+        caption=f"✅ Converted {file_name} → {html_file_name}"
     )
 
+@app.on_message(filters.command("start") & filters.private)
+async def start(client, message):
+    await message.reply_text(
+        "👋 Welcome! Send me a .txt file in the format `Name:URL` per line and I will convert it to a beautiful HTML page."
+    )
 
-# =========================
-# START BOT
-# =========================
-bot.run()
+# ---------------- RUN BOT ----------------
+if __name__ == "__main__":
+    print(f"Bot is starting on port {PORT}...")
+    app.run()
