@@ -17,7 +17,7 @@ def get_env(name: str, required=True, cast=None):
     return value
 
 
-# ✅ Telegram credentials (ENV NAMES, NOT VALUES)
-API_ID = 21705536
-API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
+# ✅ Correct usage — use ENV variable names, not values
+API_ID = get_env("API_ID", cast=int)
+API_HASH = get_env("API_HASH")
 BOT_TOKEN = get_env("BOT_TOKEN")
