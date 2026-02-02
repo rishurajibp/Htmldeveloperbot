@@ -8,9 +8,9 @@ from pyrogram.types import Message
 # =========================
 # ENV VARIABLES (Koyeb)
 # =========================
-API_ID = int(os.getenv("API_ID"))
-API_HASH = os.getenv("API_HASH")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+API_ID = int(os.getenv("21705536"))
+API_HASH = os.getenv("c5bb241f6e3ecf33fe68a444e288de2d")
+BOT_TOKEN = os.getenv("7601635113:AAG_bPYt03h1AdHcz-bMnPdnvFW9GHgC5g8")
 
 # =========================
 # BOT INIT
